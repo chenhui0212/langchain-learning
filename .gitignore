@@ -1,0 +1,15 @@
+# IDE
+.vscode
+.idea
+
+# Environments
+.env
+.venv
+env/
+venv*/
+
+# Compiled
+__pycache__
+
+# Mac
+.DS_Store
