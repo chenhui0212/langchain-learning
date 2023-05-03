@@ -1,0 +1,162 @@
+TL;DR: we're introducing a new abstraction to allow for usage of more complex tools. While previous tools took in a single string input, new tools can take in an arbitrary number of inputs of arbitrary types. We are also introducing a new agent class that works well with these new types of tools.
+
+Important Links:
+
+Tools list
+New agent
+Way back in November 2022 when we first launched LangChain, agent and tool utilization played a central role in our design. We built one of the first chains based on ReAct, a groundbreaking paper that brought tool use to the forefront of prompting frameworks.
+
+In the early days, tool use was simplistic. A model would generate two strings:
+
+A tool name
+An input string for the chosen tool
+This approach confined the agent to one tool per turn, and the input to that tool was restricted to a single string. These limitations were primarily due to the model's constraints; models struggled to perform even these basic tasks proficiently. Reliably executing more complex operations, such as selecting multiple tools or populating complex schema, would have been a fool’s errand.
+
+However, the rapid development of more advanced language models like text-davinci-003, gpt-3.5-turbo, and gpt-4 has raised the floor of what available models can reliably achieve. This prompted us to reassess the limitations on tool usage within LangChain's agent framework.
+
+Earlier this year, we introduced a "multi-action" agent framework, where agents can plan multiple actions to perform on each step of the agent executor. Building on that success, we are now breaking free from the single-string input constraint and proudly offering structured tool support!
+
+Structured tool’s enable more complex, multi-faceted interactions between language models and tools, making it easier to build innovative, adaptable, and powerful applications.
+
+What is a “Structured Tool”?
+A structured tool represents an action an agent can take. It wraps any function you provide to let an agent easily interface with it. A Structured Tool object is defined by its:
+
+name: a label telling the agent which tool to pick. For example, a tool named "GetCurrentWeather" tells the agent that it's for finding the current weather.
+description: a short instruction manual that explains when and why the agent should use the tool.
+args_schema: Communicates the interface of the tool for the agent. It typically draws from the wrapped function's signature and permits additional validation logic on tool inputs.
+_run and _arun functions: These define the tool's inner workings. It could be something simple like returning the current time or more complex like sending a message or controlling a robot.
+The tool name is its unique identifier. A good name unambiguously communicates what it does, so a tool called “GetCurrentWeather” is much more useful than “GCTW” . If a tool’s name isn’t clear to you, it probably isn’t clear to the agent either. If you are giving an agent access to multiple tools, the name could also provide information about their relationship. For instance, if you have “AmazonSearch” and “AmazonCurrentBalance” and “NikeShoppingCart” tools, the agent can infer that the first two are related, even without reading the description.
+
+The description provides more detailed directives on how to use the tool. A good description is concise but effectively communicates what the tool does. This can also provide space to provide short examples (or counter examples) if needed.
+
+The args_schema is a Pydantic BaseModel that defines the arguments (along with their type information) that are to be fed to the tool. It has two main jobs: first, to communicate what information is required from the agent. The second job is to validate those inputs before executing the tool's inner functionality.
+
+Finally, the _run and accompanying async _arun methods define tool’s logic. You can put anything here, from arithmetic, to API requests, to calls to other LLM Chains.
+
+New Structured Tools
+In addition to this new base class, we are releasing the following new tools, both of which inherit from this structured tool class.
+
+File management - a toolkit for all the filesystem operations you might want, including write, grep, move, copy, list_dir, find
+Web Browser - while we previously had browsers for document loaders, we now are releasing an official stateful PlayWright Browser toolkit that let’s an agent go to websites, click, submit forms, and query data
+For a list of all tools (old and new) please see the documentation here.
+
+Implementing your own Structured Tools
+The fastest way to get started is by calling the StructuredTool.from_function(your_callable) constructor.
+
+As an example, suppose you wanted a tool to interact with Hugging Face models via the requests library.
+
+import requests
+from langchain.tools.base import StructuredTool
+
+API_KEY = "<MY-API-KEY>"
+
+def get_huggingface_models(
+    path: Optional[str] = None, query_params: Optional[dict] = None
+) -> dict:
+    """Tool that calls GET on <https://huggingface.co/models*> apis. Valid params include "search":"search", "author":"author", "filter":"filter" and "sort":"sort"."""
+    base_url = "<https://huggingface.co/api/models>"
+    headers = {"authorization": f"Bearer {API_KEY}"}
+    result = requests.get(base_url + (path or ""), params=query_params, headers=headers)
+    return result.json()
+
+get_huggingface_models_tool = StructuredTool.from_function(get_huggingface_models)
+models = get_huggingface_models_tool.run({"query_params": {"search": "gpt-j"}})
+print(models)
+Behind the scenes, this infers the args_schema from the function’s signature. This is used tell the agent that it can provide query parameters to search as well as a path parameter to call other  child endpoints.
+
+If you want more control over the tool definition,  you can subclass the BaseTool directly. For instance, maybe you want the api key to be loaded automatically from the environment variables.
+
+from typing import Optional, Type
+
+import aiohttp
+import requests
+
+from langchain.callbacks.manager import (
+    AsyncCallbackManagerForToolRun,
+    CallbackManagerForToolRun,
+)
+from langchain.tools import BaseTool
+from pydantic import BaseModel, BaseSettings, Field
+
+class GetHuggingFaceModelsToolSchema(BaseModel):
+    path: str = Field(default="", description="the api path")
+    query_params: Optional[dict] = Field(
+        default=None, description="Optional search parameters"
+    )
+
+class GetHuggingFaceModelsTool(BaseTool, BaseSettings):
+    """My custom tool."""
+
+    name: str = "get_huggingface_models"
+    description: str = """Tool that calls GET on <https://huggingface.co/models*> apis. Valid params include "search":"search", "author":"author", "filter":"filter" and "sort":"sort"."""
+    args_schema: Type[GetHuggingFaceModelsToolSchema] = GetHuggingFaceModelsToolSchema
+    base_url: str = "<https://huggingface.co/api/models>"
+    api_key: str = Field(..., env="HUGGINGFACE_API_KEY")
+
+    @property
+    def _headers(self) -> dict:
+        return {"authorization": f"Bearer {self.api_key}"}
+
+    def _run(
+        self,
+        path: str = "",
+        query_params: Optional[dict] = None,
+        run_manager: Optional[CallbackManagerForToolRun] = None,
+    ) -> dict:
+        """Run the tool"""
+        result = requests.get(
+            self.base_url + path, params=query_params, headers=self._headers
+        )
+        return result.json()
+
+    async def _arun(
+        self,
+        path: str = "",
+        query_params: Optional[dict] = None,
+        run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
+    ) -> dict:
+        """Run the tool asynchronously."""
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                self.base_url + path, params=query_params, headers=self._headers
+            ) as response:
+                return await response.json()
+
+get_models_tool = GetHuggingFaceModelsTool()
+models = get_models_tool.run({"query_params": {"search": "gpt-j"}})
+print(models)
+How can I use Structured Tools?
+We have added a new StructuredChatAgent that works natively with these structured tools. Please see this notebook for a walkthrough.
+
+Due to limitations in the default prompts and output parsers of previous agents, they do not effectively work with structured tools without extra customization.
+
+To get started, you can instantiate the structured chat agent executor using the following code snippet:
+
+from langchain.agents import initialize_agent, AgentType
+from langchain.chat_models import ChatAnthropic
+tools = [] # Add any tools here
+llm = ChatAnthropic(temperature=0) # or any other LLM
+agent_chain = initialize_agent(tools, llm, agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION)
+These tools are also compatible with the AutoGPT agent from langchain.experimental.
+
+FAQ
+Q: Can I use structured tools with existing agents?
+
+A: If your structured tool accepts one string argument: YES, it will still work with existing agents. However, structured tool with more than one argument are not directly compatible with the following agents without further customization:
+
+zero-shot-react-description
+react-docstore
+self-ask-with-search
+conversational-react-description
+chat-zero-shot-react-description
+chat-conversational-react-description
+Q: Can I still create string Tools?
+
+A: You can still use the Tool constructor and @tool decorators to define simple string tools. Tools that inherit from the BaseTool class and accept a single string argument will still be treated as string tools.
+
+Q: Can I use previously defined string BaseTool's with new agents built for StructuredTool’s
+
+A:  Yes! Structured tools don’t require new agent executors, and older tools are forwards compatible. The original Tool class shares the same base class as the StructuredTool , which is another way of saying your tools should work out of the box.
+
+Tools that expect json serialized string inputs may require some modifications to interoperate with the output parser of newer agents, or they can be updated to the new format, which should offer better support for more complex interfaces.
