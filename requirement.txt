@@ -1,5 +1,6 @@
 autopep8==2.0.2
 pycodestyle==2.10.0
-langchain
+langchain==0.0.177
 tiktoken
 faiss-cpu
+pyowm

@@ -11,6 +11,8 @@ from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings import OpenAIEmbeddings
+from langchain.utilities import OpenWeatherMapAPIWrapper
+from langchain.agents import load_tools, initialize_agent, AgentType
 
 load_dotenv(find_dotenv())
 
@@ -90,6 +92,25 @@ retriver = db.as_retriever()
 
 docs = retriver.get_relevant_documents("How to use structured tools?")
 print("\n\n".join([x.page_content[:200] for x in docs[:2]]))
+
+
+#%%
+weather = OpenWeatherMapAPIWrapper()
+weather_data = weather.run("Shanghai,CN")
+print(weather_data)
+
+
+# %%
+llm = OpenAI(temperature=0)
+tools = load_tools(["openweathermap-api"], llm)
+
+agent_chain = initialize_agent(
+    tools=tools,
+    llm=llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+agent_chain.run("What's the weather like in Shanghai?")
 
 
 # %%
