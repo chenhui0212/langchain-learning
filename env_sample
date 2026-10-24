@@ -8,3 +8,6 @@ OPENAI_API_BASE=https://api.deepseek.com
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=lsv2_pt_xxxx
 LANGSMITH_PROJECT=langchain-learning
+
+# Tavily
+TAVILY_API_KEY=tvly-xxxx
