@@ -3,6 +3,8 @@ langchain-deepseek
 langchain-openrouter
 langchain-ollama
 langchain-tavily
+langgraph-checkpoint-postgres
 
 python-dotenv
 rich
+psycopg[binary]
