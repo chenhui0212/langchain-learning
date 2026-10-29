@@ -1,0 +1,30 @@
+{
+  "documents": [
+    {
+      "title": "RAG 基础",
+      "type": "rag",
+      "summary": "RAG 通过检索外部资料辅助模型回答。",
+      "sections": [
+        {
+          "title": "检索",
+          "text": "根据用户问题，从知识库中查找相关资料。"
+        },
+        {
+          "title": "生成",
+          "text": "将问题和检索结果一起提供给模型，生成回答。"
+        }
+      ]
+    },
+    {
+      "title": "Embedding 基础",
+      "type": "embedding",
+      "summary": "Embedding 将文本转换为数值向量。",
+      "sections": [
+        {
+          "title": "用途",
+          "text": "通过比较向量的相似程度，可以查找语义相关的文本。"
+        }
+      ]
+    }
+  ]
+}

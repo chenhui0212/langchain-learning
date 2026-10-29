@@ -3,8 +3,15 @@ langchain-deepseek
 langchain-openrouter
 langchain-ollama
 langchain-tavily
+langchain-community
+langchain-unstructured
+langchain-docling[local]
 langgraph-checkpoint-postgres
 
 python-dotenv
 rich
 psycopg[binary]
+jq
+pypdf
+unstructured[pdf]
+mlx-vlm
