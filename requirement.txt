@@ -15,3 +15,4 @@ jq
 pypdf
 unstructured[pdf]
 mlx-vlm
+chonkie[st]
