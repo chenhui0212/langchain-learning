@@ -4,6 +4,9 @@ DEEPSEEK_API_BASE=https://api.deepseek.com
 OPENAI_API_KEY=sk-xxxx
 OPENAI_API_BASE=https://api.deepseek.com
 
+DASHSCOPE_API_KEY=sk-xxxx
+DASHSCOPE_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
+
 # LangSmith
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=lsv2_pt_xxxx
