@@ -6,6 +6,7 @@ langchain-tavily
 langchain-community
 langchain-unstructured
 langchain-docling[local]
+langchain-milvus
 langgraph-checkpoint-postgres
 
 python-dotenv
@@ -16,3 +17,4 @@ pypdf
 unstructured[pdf]
 mlx-vlm
 chonkie[st]
+milvus
